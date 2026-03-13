@@ -1,3 +1,8 @@
+# Group
+- Sarathy Selvam (PID: 730770538)
+- Lakshin Ganesha (PID: )
+
+
 # Concurrent Four-Ring System
 
 A concurrent system of four independent rings of processes/threads, implemented in both **Elixir** (BEAM processes) and **Java** (threads).

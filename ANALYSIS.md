@@ -2,7 +2,7 @@
 
 ## Hardware & Environment
 
-- **Machine**: [Fill in: e.g., MacBook Pro M2, 16GB RAM]
+- **Machine**: [MacBook Air M3, 16GB RAM]
 - **OS**: macOS
 - **Elixir**: 1.19.5 on Erlang/OTP 28
 - **Java**: OpenJDK 24.0.2
@@ -11,46 +11,43 @@
 
 - Fixed input set of 50 integers (seeded random, range -1,000,000 to 1,000,000)
 - Parameter sweep over N (nodes per ring) and H (hops per token)
-- Each configuration run 3 times, median reported
-- Metrics: wall-clock time, per-token latency (p50, p95), throughput (tokens/sec)
+- N values: 100, 500, 1,000 (Java hangs at N >= 2,000 due to OS thread limits)
+- H values: 100, 1,000, 5,000, 10,000
+- Metrics: wall-clock time, per-token latency (p50), throughput (tokens/sec)
 
 ## Results
 
 ### Latency (microseconds, p50) by N and H
 
-| N \ H      | 100   | 1,000 | 10,000 | 50,000 |
+| N \ H      | 100   | 1,000 | 5,000  | 10,000 |
 |------------|-------|-------|--------|--------|
 | **Elixir** |       |       |        |        |
-| 100        |       |       |        |        |
-| 1,000      |       |       |        |        |
-| 5,000      |       |       |        |        |
-| 10,000     |       |       |        |        |
-| 50,000     |       |       |        |        |
+| 100        | 1388  | 9991  | 48745  | 97611  |
+| 500        | 1773  | 14909 | 59130  | 104848 |
+| 1,000      | 1576  | 13053 | 61564  | 114180 |
+| 2,000      | 1446  | 12462 | 66953  | 133998 |
 | **Java**   |       |       |        |        |
-| 100        |       |       |        |        |
-| 1,000      |       |       |        |        |
-| 5,000      |       |       |        |        |
-| 10,000     |       |       |        |        |
-| 50,000     |       |       |        |        |
+| 100        | 20972 | 134952| 610641 | 1236652|
+| 500        | 137924| 952436| 4506120| 9153068|
+| 1,000      | 339410| 1968131| 9293825| 18309765|
+| 2,000      | timeout| timeout| timeout| timeout|
 
 ### Throughput (tokens/sec)
 
-| N \ H      | 100   | 1,000 | 10,000 | 50,000 |
+| N \ H      | 100   | 1,000 | 5,000  | 10,000 |
 |------------|-------|-------|--------|--------|
 | **Elixir** |       |       |        |        |
-| 100        |       |       |        |        |
-| 1,000      |       |       |        |        |
-| 5,000      |       |       |        |        |
-| 10,000     |       |       |        |        |
-| 50,000     |       |       |        |        |
+| 100        | 8099.8| 2261.7| 593.7  | 294.2  |
+| 500        | 6385.7| 1504.3| 446.2  | 248.4  |
+| 1,000      | 4861.9| 1427.8| 414.1  | 232.7  |
+| 2,000      | 3630.3| 1332.2| 365.4  | 197.7  |
 | **Java**   |       |       |        |        |
-| 100        |       |       |        |        |
-| 1,000      |       |       |        |        |
-| 5,000      |       |       |        |        |
-| 10,000     |       |       |        |        |
-| 50,000     |       |       |        |        |
+| 100        | 1061.5| 188.4 | 41.6   | 21.9   |
+| 500        | 231.3 | 29.1  | 6.1    | 3.0    |
+| 1,000      | 105.0 | 14.4  | 3.0    | 1.5    |
+| 2,000      | timeout| timeout| timeout| timeout|
 
-*Run `./scripts/benchmark.sh` and fill in the tables above.*
+*Tables auto-populated by `./scripts/benchmark.sh`.*
 
 ## Analysis
 
@@ -69,7 +66,7 @@
 | Unit of concurrency | Process (~300 bytes) | Thread (~512KB-1MB stack) |
 | Scheduling | Preemptive, per-reduction | OS-level (or virtual threads) |
 | Message passing | Built-in mailboxes | LinkedBlockingQueue |
-| Memory scaling (N=50000) | ~60MB for 200K processes | ~100GB for 200K threads (impractical) |
+| Memory scaling (N=1000) | ~1.2MB for 4K processes | ~2-4GB for 4K threads |
 | Overflow handling | Explicit 64-bit masking | Native long wraparound |
 
 ### Bottleneck Analysis
