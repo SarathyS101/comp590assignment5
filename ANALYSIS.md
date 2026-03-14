@@ -15,6 +15,12 @@
 - H values: 100, 1,000, 5,000, 10,000
 - Metrics: wall-clock time, per-token latency (p50), throughput (tokens/sec)
 
+### Metrics & Monitoring Tools
+
+Elixir used a BeamMon process to track memory usage, process count, and the run queue directly from the BEAM VM.
+Java used a custom JvmMon daemon thread querying Runtime.getRuntime() and
+ManagementFactory.getThreadMXBean() to track heap usage and active thread count.
+
 ## Results
 
 ### Latency (microseconds, p50) by N and H
@@ -59,6 +65,12 @@
 
 3. **Large N, large H**: Stress test. Elixir may show more consistent latency due to preemptive scheduling. Java may have higher throughput per-hop due to JIT optimization of the tight transform loop.
 
+### Actual Observations
+
+1. Elixir won in all Scenarios: The BEAM virtual machine significantly outperformed Java in both latency and throughput across every combination of N and H. Elixir proved exceptionally well-suited for this architecture, validating that its lightweight process model and built in message-passing primitives are vastly superior to standard Java threading for high volume, small-payload concurrent messaging.
+2. Java Scalability Collapse: Java exhibited catastrophic performance degradation as the number of nodes (N) increased. Moving from N=100 to N=1000 at H=10,000 caused Java's latency to balloon from  around 1.2 seconds to over 18 seconds, while Elixir's latency barely increased (from around 97ms to 114ms). 
+3. Refutation of JIT Throughput Hypothesis: The expectation that Java's JIT compiler might eventually yield higher throughput at large H values (due to optimized math operations) was incorrect. The data shows that the synchronization overhead of LinkedBlockingQueue and the intense cost of OS thread context-switching completely overshadowed any pure computational advantages the JVM might have had.
+
 ### Concurrency Model Comparison
 
 | Aspect | Elixir (BEAM) | Java (Threads) |
@@ -76,5 +88,4 @@
 - **Java**: Thread context switching overhead grows with N. For large N, many threads compete for CPU time. The LinkedBlockingQueue introduces synchronization overhead per hop.
 
 ## Conclusions
-
-*Fill in after running benchmarks.*
+For systems that requre thousands of concurrent, message passing entities, Elixir/OTP is the definitively better tool to use directly. If the system haas to be implemented in Java, the current architecture (1 OS Thread to 1 Node) is not viable. The Java implementation would require a fundamental rewrite utilizing Java 21+ Virtual Threads (Project Loom) or an external Actor-model framework (such as Akka) to bypass the limitations of OS-level thread mapping and achieve parity with Elixir's baseline capabilities.
