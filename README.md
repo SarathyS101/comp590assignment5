@@ -3,9 +3,13 @@
 - Lakshin Ganesha (PID: 730757493)
 
 
-# Concurrent Four-Ring System
+# Concurrent Four-Ring System in Elixir vs Java
 
-A concurrent system of four independent rings of processes/threads, implemented in both **Elixir** (BEAM processes) and **Java** (threads).
+Overview
+
+We implemented a concurrent system composed of four independent rings of processes/threads. A central Coordinator reads integer inputs, routes them to one of four rings based on their value (Negative, Zero, Positive Even, Positive Odd), and tracks the completion of the work. Each ring circulates a token for a specified number of hops (H), applying a ring-specific mathematical transformation at each node.
+
+The reason we used the two languages in this assignment is to compare concurrency models. Elixir, Utilizing the BEAM virtual machine's lightweight actor-model processes. Java, Utilizing standard OS-level threads and shared memory structures
 
 ## Architecture
 
@@ -29,6 +33,11 @@ A concurrent system of four independent rings of processes/threads, implemented 
        ┌──▶N1──▶N2──▶...──▶Nn─┐  (each ring has N nodes in a cycle)
        └───────────────────────┘
 ```
+Each ring only takes one process at a time and queues the rest until it finished its hops. 
+
+Java Implementation: The RingManager thread uses an ArrayDeque<Token> as a waitQueue. Uising an inFlight boolean flag. When an EnqueueCmd is received, it checks the flag. If true, the token is queued. When a token completes its final hop, it is sent back to the RingManager via a LinkedBlockingQueue. The manager reports the result to the Coordinator, pulls the next token from the waitQueue, and dispatches it to the first node.
+
+Elixir Implementation: The queueing is naturally handled by the BEAM's built-in message mailboxes. The RingManager process maintains the state of the active token and a list of queued tokens. It pattern-matches incoming messages to manage the queue without requiring explicit locking mechanisms.
 
 ### Routing Rules
 - `x < 0` → NEG ring (transform: `v * 3 + 1`)
@@ -37,6 +46,8 @@ A concurrent system of four independent rings of processes/threads, implemented 
 - `x > 0, odd` → POS_ODD ring (transform: `v * 101 + 1`)
 
 Each token hops through H nodes in its ring. Only one token is in-flight per ring at a time (FIFO queue for waiting tokens).
+
+In java each ringnode is a dedicated thread that continuously polls a LinkedBlockingQueue<Object> inbox. To pass a token to the next node, it places the token into the next node's queue (nextInbox.put(token)). This introduces thread safe synchronization overhead at every single hop. While in Elixir, nodes are lightweight processes. Tokens are passed using asynchronous message passing (send/2), which is highly optimized within the BEAM.
 
 ### 64-bit Arithmetic
 Both implementations use 64-bit signed integer arithmetic. Java's `long` wraps naturally on overflow. Elixir uses explicit bitwise masking to match Java's behavior, ensuring identical results.
